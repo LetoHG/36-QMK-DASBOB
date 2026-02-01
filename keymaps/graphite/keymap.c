@@ -252,99 +252,340 @@ tap_dance_action_t tap_dance_actions[] = {
 #define DE_ODIA UC(0x00F6)
 #define DE_UDIA UC(0x00FC)
 
-enum {
-    _ALPHA,
+enum custom_layers {
+    _GRAPHITE,
+    _ISRT,
+    _COLEMAK_DH,
+    _QWERTY,
     _SPECIAL,
     _NUMBERS,
     _NAVIGATION,
     _FUNCTION,
     _MOUSE,
+    _LAYOUT_SELECTION,
 };
+
+// Custom keycodes
+enum custom_keycodes {
+    GRAPHITE = SAFE_RANGE,
+    ISRT,
+    COLEMAK_DH,
+    QWERTY,
+    GO_ALPHA,
+    LEFT_THUMB_1,
+    LEFT_THUMB_2,
+    RGHT_THUMB_2,
+    RGHT_THUMB_1,
+    SWAP_THUMBS,
+    SWAP_RTHUMB,
+    SWAP_LTHUMB,
+    SWAP_HANDS,
+};
+
+// The third thumb key is not in use yet
+#define LEFT_THUMB_3 KC_NO
+#define RGHT_THUMB_3 KC_NO
+
+const uint16_t PROGMEM thumb_shift_combo[] = {LEFT_THUMB_2, RGHT_THUMB_2, COMBO_END};
+combo_t                key_combos[]        = {
+    COMBO(thumb_shift_combo, KC_LSFT),
+};
+
+// void process_combo_event(uint16_t combo_index, bool pressed) {
+//   if (combo_index == 0) {
+//     if (pressed) {
+//       register_code(KC_LSFT);
+//     } else {
+//       unregister_code(KC_LSFT);
+//     }
+//   }
+// }
+
+// Tracks the current base layer
+uint8_t current_alpha_layer = _GRAPHITE;
+
+bool handle_layout_switch(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case GRAPHITE:
+            if (record->event.pressed) {
+                current_alpha_layer = _GRAPHITE;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+
+        case ISRT:
+            if (record->event.pressed) {
+                current_alpha_layer = _ISRT;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case COLEMAK_DH:
+            if (record->event.pressed) {
+                current_alpha_layer = _COLEMAK_DH;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case QWERTY:
+            if (record->event.pressed) {
+                current_alpha_layer = _QWERTY;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case GO_ALPHA:
+            if (record->event.pressed) {
+                layer_move(current_alpha_layer); // or layer_on/off/toggle depending on use
+            }
+            return false;
+        default:
+            break;
+    }
+    return true;
+}
+
+uint8_t use_inner_thumb_key         = false;
+uint8_t thumb_cluster_right_swapped = false;
+uint8_t thumb_cluster_left_swapped  = false;
+uint8_t thumb_cluster_hands_swapped = false;
+
+uint16_t ctrl_press_time = 0;
+bool     handle_left_thumb_1(keyrecord_t *record) {
+    if (record->event.pressed) {
+        if (IS_LAYER_ON(current_alpha_layer)) {
+            ctrl_press_time = record->event.time;
+            register_code(KC_LCTL);
+        } else if (IS_LAYER_ON(_SPECIAL)) {
+            register_mods(MOD_BIT(KC_LALT) | MOD_BIT(KC_LCTL));
+        } else {
+            register_code(KC_LGUI);
+        }
+    } else if (IS_LAYER_ON(current_alpha_layer)) {
+        unregister_code(KC_LCTL);
+        if ((record->event.time - ctrl_press_time) <= TAPPING_TERM) {
+            // TAP → oneshot shift
+            clear_oneshot_mods();
+            set_oneshot_mods(MOD_BIT(KC_LCTL));
+        }
+    } else {
+        unregister_mods(MOD_BIT(KC_LALT) | MOD_BIT(KC_LCTL) | MOD_BIT(KC_LGUI));
+    }
+    return false;
+}
+
+bool handle_left_thumb_2(keyrecord_t *record) {
+    if (record->event.pressed) {
+        if (IS_LAYER_ON(_SPECIAL)) {
+            layer_move(_NUMBERS);
+        } else if (IS_LAYER_ON(_NUMBERS)) {
+            // remain in this layer
+        } else {
+            layer_move(_SPECIAL);
+        }
+    }
+    return false;
+}
+
+uint16_t shift_press_time = 0;
+bool     handle_right_thumb_1(keyrecord_t *record) {
+    if (record->event.pressed) {
+        shift_press_time = record->event.time;
+        register_code(KC_LSFT);
+    } else {
+        unregister_code(KC_LSFT);
+        if ((record->event.time - shift_press_time) <= TAPPING_TERM) {
+            // TAP → oneshot shift
+            clear_oneshot_mods();
+            set_oneshot_mods(MOD_BIT(KC_LSFT));
+        }
+    }
+    return false;
+}
+
+bool handle_right_thumb_2(keyrecord_t *record) {
+    if (record->event.pressed) {
+        if (IS_LAYER_ON(current_alpha_layer)) {
+            register_code(KC_SPC);
+        } else {
+            layer_move(current_alpha_layer);
+        }
+    } else {
+        unregister_code(KC_SPC);
+    }
+    return false;
+}
+
+bool handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case LEFT_THUMB_1:
+            if (thumb_cluster_hands_swapped) {
+                return thumb_cluster_left_swapped ? handle_right_thumb_2(record) : handle_right_thumb_1(record);
+            }
+            return thumb_cluster_left_swapped ? handle_left_thumb_2(record) : handle_left_thumb_1(record);
+        case LEFT_THUMB_2:
+            if (thumb_cluster_hands_swapped) {
+                return thumb_cluster_left_swapped ? handle_right_thumb_1(record) : handle_right_thumb_2(record);
+            }
+            return thumb_cluster_left_swapped ? handle_left_thumb_1(record) : handle_left_thumb_2(record);
+
+        case RGHT_THUMB_1:
+            if (thumb_cluster_hands_swapped) {
+                return thumb_cluster_right_swapped ? handle_left_thumb_2(record) : handle_left_thumb_1(record);
+            }
+            return thumb_cluster_right_swapped ? handle_right_thumb_2(record) : handle_right_thumb_1(record);
+        case RGHT_THUMB_2:
+            if (thumb_cluster_hands_swapped) {
+                return thumb_cluster_right_swapped ? handle_left_thumb_1(record) : handle_left_thumb_2(record);
+            }
+            return thumb_cluster_right_swapped ? handle_right_thumb_1(record) : handle_right_thumb_2(record);
+
+        case SWAP_THUMBS:
+            if (record->event.pressed) {
+                thumb_cluster_right_swapped = !thumb_cluster_right_swapped;
+                thumb_cluster_left_swapped  = !thumb_cluster_left_swapped;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case SWAP_RTHUMB:
+            if (record->event.pressed) {
+                thumb_cluster_right_swapped = !thumb_cluster_right_swapped;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case SWAP_LTHUMB:
+            if (record->event.pressed) {
+                thumb_cluster_left_swapped = !thumb_cluster_left_swapped;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        case SWAP_HANDS:
+            if (record->event.pressed) {
+                thumb_cluster_hands_swapped = !thumb_cluster_hands_swapped;
+                layer_move(current_alpha_layer);
+            }
+            return false;
+        default:
+            break;
+    }
+    return true;
+}
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case GRAPHITE:
+        case ISRT:
+        case COLEMAK_DH:
+        case QWERTY:
+        case GO_ALPHA:
+            return handle_layout_switch(keycode, record);
+
+        case LEFT_THUMB_1:
+        case LEFT_THUMB_2:
+        case RGHT_THUMB_2:
+        case RGHT_THUMB_1:
+        case SWAP_THUMBS:
+        case SWAP_RTHUMB:
+        case SWAP_LTHUMB:
+        case SWAP_HANDS:
+            return handle_thumb_keys(keycode, record);
+        default:
+            break;
+    }
+    return true;
+}
+
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-  [_ALPHA] = LAYOUT_split_3x5_3(
-  //----------------------------------------------------------------------------       ---------------------------------------------------------------------------------------
-      KC_B,     KC_L,     KC_D,                 KC_W,                 KC_Z,                KC_BSPC,    KC_F,                KC_O,               KC_U,          KC_J,
-  //----------------------------------------------------------------------------       ---------------------------------------------------------------------------------------
-      KC_N,     KC_R,     MT(MOD_LALT,KC_T),    MT(MOD_LGUI,KC_S),    KC_G,                KC_Y,       MT(MOD_RGUI,KC_H),   MT(MOD_RALT,KC_A),  KC_E,          KC_I,
-  //----------------------------------------------------------------------------       ---------------------------------------------------------------------------------------
-      KC_Q,     KC_X,     KC_M,                 KC_C,                 KC_V,                KC_K,       KC_P,                TD(COMMA_MINUS),    TD(DOT_EXLM),  TD(SLASH_UNDS),
-  //----------------------------------------------------------------------------       ---------------------------------------------------------------------------------------
-                              KC_NO,                  TO(_SPECIAL),      OSM(MOD_LCTL),          OSM(MOD_LSFT), KC_SPACE, KC_NO
-  //----------------------------------------------------------------------------       ---------------------------------------------------------------------------------------
+  [_GRAPHITE] = LAYOUT(
+// ┌───────────────────────────── Left hand ─────────────────────────────┐    ┌────────────────────────────────── Right hand ─────────────────────────────────────┐
+    KC_B, KC_L,               KC_D,              KC_W,              KC_Z, /**/ KC_BSPC, KC_F,              KC_O,              KC_U,               KC_J,            // Row 1
+    KC_N, LT(_NUMBERS, KC_R), MT(MOD_LALT,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y,    MT(MOD_RGUI,KC_H), MT(MOD_RALT,KC_A), LT(_SPECIAL, KC_E), KC_I,            // Row 2
+    KC_Q, KC_X,               KC_M,              KC_C,              KC_V, /**/ KC_K,    KC_P,              TD(COMMA_MINUS),   TD(DOT_EXLM),       TD(SLASH_UNDS),  // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
   ),
 
-  [_SPECIAL] = LAYOUT_split_3x5_3(
-  //-------------------------------------------------------------------------------------------------      ---------------------------------------------------------------------------------
-    TD(ESC_FORCE_QUIT_VIM), KC_UNDS,          KC_LBRC,      KC_RBRC,               TD(CIRC_QUIT_VIM),        KC_PLUS,          KC_LABK,        KC_RABK,           KC_EQUAL,       KC_BSPC,
-  //-------------------------------------------------------------------------------------------------      ---------------------------------------------------------------------------------
-    KC_TAB,                 TD(SL_BKSL),      KC_LCBR,      KC_RCBR,               KC_ASTR,                  KC_MINS,         KC_LPRN,        KC_RPRN,           KC_SCLN,      KC_ENT,
-  //-------------------------------------------------------------------------------------------------      ---------------------------------------------------------------------------------
-    TD(HASH_AT),            TD(DLR_PERC),     KC_PIPE,      KC_TILD,               KC_GRV,                   TD(EXLM_QUES),    KC_AMPR,        TD(DQUOTE_QUOTE),  KC_COLN,       TO(_NAVIGATION),
-  //-------------------------------------------------------------------------------------------------      ---------------------------------------------------------------------------------
-                               KC_NO,                             TO(_NUMBERS),          LALT(KC_LCTL),            OSM(MOD_LSFT),    TO(_ALPHA), KC_NO
-  //-------------------------------------------------------------------------------------------------      ---------------------------------------------------------------------------------
+  [_ISRT] = LAYOUT(
+// ┌────────────────────── Left hand ──────────────────────┐    ┌─────────────────────────── Right hand ──────────────────────────────┐
+    KC_Y, KC_C, KC_L,              KC_M,              KC_K, /**/ KC_Z, KC_F,              KC_U,              TD(COMMA_MINUS), KC_BSPC, // Row 1
+    KC_I, KC_S, MT(MOD_LALT,KC_R), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_P, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_A,            KC_O,    // Row 2
+    KC_Q, KC_V, KC_W,              KC_D,              KC_J, /**/ KC_B, KC_H,              TD(SLASH_UNDS),    TD(DOT_EXLM),    KC_X,    // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
-  [_NUMBERS] = LAYOUT_split_3x5_3(
-  //-----------------------------------------------------------------------------------------------------------------       ----------------------------------------------------
-    KC_ESCAPE,              KC_MEDIA_PLAY_PAUSE,    KC_MEDIA_PREV_TRACK,    KC_MEDIA_NEXT_TRACK,    KC_SLASH,                 KC_PLUS,            KC_7,               KC_8,               KC_9,                 KC_BSPC,
-  //-----------------------------------------------------------------------------------------------------------------       ----------------------------------------------------
-    KC_TAB,                 KC_LALT,                KC_LSFT,                KC_LCTL,                KC_ASTR,                  KC_MINS,            TD(HEX_NUMPAD_4_D), TD(HEX_NUMPAD_5_E), TD(HEX_NUMPAD_6_F),   KC_ENT,
-  //-----------------------------------------------------------------------------------------------------------------       ----------------------------------------------------
-    KC_BRIGHTNESS_DOWN,     KC_BRIGHTNESS_UP,       KC_AUDIO_VOL_DOWN,      KC_AUDIO_VOL_UP,        TD(DEC_DOT_COMMA),        TD(HEX_NUMPAD_0_X), TD(HEX_NUMPAD_1_A), TD(HEX_NUMPAD_2_B), TD(HEX_NUMPAD_3_C),   TO(_FUNCTION),
-  //-----------------------------------------------------------------------------------------------------------------       ----------------------------------------------------
-                              KC_NO,                                              TO(_NUMBERS),           KC_LGUI,                  OSM(MOD_LSFT),      TO(_ALPHA), KC_NO
-  //-----------------------------------------------------------------------------------------------------------------       ----------------------------------------------------
+  [_COLEMAK_DH] = LAYOUT(
+// ┌────────────────────── Left hand ──────────────────────┐    ┌───────────────────────────── Right hand ────────────────────────────────┐
+    KC_Q, KC_W, KC_F,              KC_P,              KC_B, /**/ KC_J, KC_L,              KC_U,              KC_Y,         KC_BSPC,        // Row 1
+    KC_A, KC_R, MT(MOD_LALT,KC_S), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_M, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_I,         KC_O,           // Row 2
+    KC_Z, KC_X, KC_C,              KC_D,              KC_V, /**/ KC_K, KC_H,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
-  [_NAVIGATION] = LAYOUT_split_3x5_3(
-  //-----------------------------------------------------------------------       ----------------------------------------------------------------------------------------------
-    KC_ESC,           KC_NO,       KC_WBAK,       KC_WFWD,      KC_NO,                 KC_PGUP,     KC_HOME,                KC_END,     KC_PGDN,              KC_BSPC,
-  //-----------------------------------------------------------------------       ----------------------------------------------------------------------------------------------
-    KC_TAB,           KC_LALT,     KC_LSFT,       KC_LCTL,      LCTL(KC_S),            KC_LEFT,     KC_DOWN,                KC_UP,      KC_RIGHT,               KC_ENT,
-  //-----------------------------------------------------------------------       ----------------------------------------------------------------------------------------------
-    LCTL(KC_Z),       LCTL(KC_X),  LCTL(KC_C),    LCTL(KC_V),   LCTL(KC_Y),            KC_NO,       TO(_MOUSE),             KC_NO,      KC_NO,                  KC_DELETE,
-  //-----------------------------------------------------------------------       ----------------------------------------------------------------------------------------------
-                            KC_NO,                      TO(_SPECIAL), KC_LGUI,               KC_TRANSPARENT,  TO(_ALPHA), KC_NO
-  //-----------------------------------------------------------------------       ----------------------------------------------------------------------------------------------
+  [_QWERTY] = LAYOUT(
+// ┌────────────────────── Left hand ──────────────────────┐    ┌───────────────────────────── Right hand ────────────────────────────────┐
+    KC_Q, KC_W, KC_E,              KC_R,              KC_T, /**/ KC_Y, KC_U,              KC_I,              KC_O,         KC_P,           // Row 1
+    KC_A, KC_S, MT(MOD_LALT,KC_D), MT(MOD_LGUI,KC_F), KC_G, /**/ KC_H, MT(MOD_RGUI,KC_J), MT(MOD_RALT,KC_K), KC_L,         KC_SCLN,        // Row 2
+    KC_Z, KC_X, KC_C,              KC_V,              KC_B, /**/ KC_N, KC_M,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // OSM(MOD_LCTL),     TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
-  [_FUNCTION] = LAYOUT_split_3x5_3(
-  //--------------------------------------------------------       ----------------------------------------------------------
-    KC_ESC,   KC_NO,     KC_NO,     KC_NO,        KC_NO,               KC_NO,      KC_F1,     KC_F2,     KC_F3,     KC_F4,
-  //--------------------------------------------------------       ----------------------------------------------------------
-    KC_NO,    KC_LALT,   KC_LSFT,   KC_LCTL,      KC_NO,               KC_NO,      KC_F5,     KC_F6,     KC_F7,     KC_F8,
-  //--------------------------------------------------------       ----------------------------------------------------------
-    KC_NO,    KC_NO,     KC_NO,     KC_NO,        KC_NO,               KC_NO,      KC_F9,      KC_F10,    KC_F11,    KC_F12,
-  //--------------------------------------------------------       ----------------------------------------------------------
-                           KC_NO,         TO(_SPECIAL), KC_LALT,             KC_TRANSPARENT, TO(_ALPHA), KC_NO
-  //--------------------------------------------------------       ----------------------------------------------------------
+  [_SPECIAL] = LAYOUT(
+// ┌──────────────────────────────── Left hand ───────────────────────────────┐    ┌─────────────────────────── Right hand ─────────────────────────────┐
+    TD(ESC_FORCE_QUIT_VIM), KC_UNDS,      KC_LBRC, KC_RBRC, TD(CIRC_QUIT_VIM), /**/ KC_PLUS,       KC_LABK, KC_RABK,          KC_EQUAL, KC_BSPC,         // Row 1
+    KC_TAB,                 TD(SL_BKSL),  KC_LCBR, KC_RCBR, KC_ASTR,           /**/ KC_MINS,       KC_LPRN, KC_RPRN,          KC_SCLN,  KC_ENT,          // Row 2
+    TD(HASH_AT),            TD(DLR_PERC), KC_PIPE, KC_TILD, KC_GRV,            /**/ TD(EXLM_QUES), KC_AMPR, TD(DQUOTE_QUOTE), KC_COLN,  TO(_NAVIGATION), // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // LALT(KC_LCTL),         TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
   ),
 
-  [_MOUSE] = LAYOUT_split_3x5_3(
-  //---------------------------------------------------------------       ----------------------------------------------------------
-    KC_ESC,   KC_NO,        KC_MS_UP,      KC_NO,          KC_NO,                KC_MS_WH_UP,      KC_LCTL,       KC_LSFT,        KC_LALT,       KC_NO,
-  //---------------------------------------------------------------       ----------------------------------------------------------
-    KC_NO,    KC_MS_LEFT,   KC_MS_DOWN,    KC_MS_RIGHT,    KC_NO,                KC_MS_WH_DOWN,    KC_MS_BTN1,    KC_MS_BTN2,     KC_NO,         KC_NO,
-  //---------------------------------------------------------------       ----------------------------------------------------------
-    KC_NO,    KC_MS_BTN3,   KC_MS_WH_LEFT, KC_MS_WH_RIGHT, KC_NO,                KC_NO,            KC_MS_ACCEL0,  KC_MS_ACCEL1,  KC_MS_ACCEL2,   KC_NO,
-  //---------------------------------------------------------------       ----------------------------------------------------------
-                            KC_NO,               TO(_SPECIAL),   KC_LALT,              KC_TRANSPARENT,   TO(_ALPHA), KC_NO
-  //---------------------------------------------------------------       ----------------------------------------------------------
-  )
+  [_NUMBERS] = LAYOUT(
+// ┌──────────────────────────────────────── Left hand ──────────────────────────────────────────────────┐    ┌──────────────────────────────────────── Right hand ──────────────────────────────────────────┐
+    KC_ESCAPE,          KC_MEDIA_PLAY_PAUSE, KC_MEDIA_PREV_TRACK, KC_MEDIA_NEXT_TRACK, KC_SLASH,          /**/ KC_PLUS,            KC_7,               KC_8,               KC_9,               KC_BSPC,       // Row 1
+    KC_TAB,             KC_LALT,             KC_LSFT,             KC_LCTL,             KC_ASTR,           /**/ KC_MINS,            TD(HEX_NUMPAD_4_D), TD(HEX_NUMPAD_5_E), TD(HEX_NUMPAD_6_F), KC_ENT,        // Row 2
+    KC_BRIGHTNESS_DOWN, KC_BRIGHTNESS_UP,    KC_AUDIO_VOL_DOWN,   KC_AUDIO_VOL_UP,     TD(DEC_DOT_COMMA), /**/ TD(HEX_NUMPAD_0_X), TD(HEX_NUMPAD_1_A), TD(HEX_NUMPAD_2_B), TD(HEX_NUMPAD_3_C), TO(_FUNCTION), // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // KC_LGUI,                TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
+  ),
 
-//   [3] = LAYOUT_split_3x5_3(
-//   //---------------------------------------------------------------------------------------       ---------------------------------------------------------------------------------------------------------------
-//     KC_ESC,           KC_MS_WH_LEFT,  KC_MS_UP,       KC_MS_WH_RIGHT,     KC_NO,                    LGUI(KC_LBRACKET),      LCTL(LSFT(KC_TAB)),     RCTL(KC_TAB),           LGUI(KC_RBRACKET),      KC_TRANSPARENT,
-//   //---------------------------------------------------------------------------------------       ---------------------------------------------------------------------------------------------------------------
-//     TD(TAB_WINTAB),   KC_MS_LEFT,     KC_MS_DOWN,     KC_MS_RIGHT,        MT(MOD_LGUI,KC_DEL),      TD(LEFT__CTRL_LEFT),    MT(MOD_RGUI,KC_DOWN),   MT(MOD_RALT,KC_UP),     TD(RIGHT__CTRL_RIGHT),  KC_ENT,
-//   //---------------------------------------------------------------------------------------       ---------------------------------------------------------------------------------------------------------------
-//     KC_NO,            KC_MS_BTN2,     KC_MS_WH_UP,    KC_MS_WH_DOWN,      KC_TRANSPARENT,           KC_MS_BTN1,             KC_MS_ACCEL0,           KC_MS_ACCEL1,           KC_MS_ACCEL2,           KC_NO,
-//   //---------------------------------------------------------------------------------------       ---------------------------------------------------------------------------------------------------------------
-//                                                       KC_LALT,            TO(_SPECIAL),                    TO(0),                  KC_TRANSPARENT
-//   //---------------------------------------------------------------------------------------       ---------------------------------------------------------------------------------------------------------------
-//   ),
+  [_NAVIGATION] = LAYOUT(
+// ┌─────────────────────── Left hand ─────────────────────────┐    ┌───────────────── Right hand ────────────────────┐
+    KC_ESC,     KC_NO,      KC_WBAK,    KC_WFWD,    KC_NO,      /**/ KC_PGUP, KC_HOME,    KC_END, KC_PGDN,  KC_BSPC,   // Row 1
+    KC_TAB,     KC_LALT,    KC_LSFT,    KC_LCTL,    LCTL(KC_S), /**/ KC_LEFT, KC_DOWN,    KC_UP,  KC_RIGHT, KC_ENT,    // Row 2
+    LCTL(KC_Z), LCTL(KC_X), LCTL(KC_C), LCTL(KC_V), LCTL(KC_Y), /**/ KC_NO,   TO(_MOUSE), KC_NO,  KC_NO,    KC_DELETE, // Row 3
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // KC_LGUI,      TO(_SPECIAL),          GO_ALPHA, KC_TRANSPARENT
+  ),
+
+  [_FUNCTION] = LAYOUT(
+// ┌────────────────────── Left hand ────────────────────────┐    ┌──────────── Right hand ─────────────┐
+    KC_ESC, KC_NO,   KC_NO,   KC_NO,   TO(_LAYOUT_SELECTION), /**/ KC_NO, KC_F1, KC_F2,  KC_F3,  KC_F4,  // Row 1
+    KC_NO,  KC_LALT, KC_LSFT, KC_LCTL,      KC_NO,            /**/ KC_NO, KC_F5, KC_F6,  KC_F7,  KC_F8,  // Row 2
+    KC_NO,  KC_NO,   KC_NO,   KC_NO,        KC_NO,            /**/ KC_NO, KC_F9, KC_F10, KC_F11, KC_F12, // Row 3
+// └────────────────────── Left hand ────────────────────────┘    └──────────── Right hand ─────────────┘
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // KC_LALT,      TO(_SPECIAL),        GO_ALPHA, KC_TRANSPARENT
+  ),
+
+  [_MOUSE] = LAYOUT(
+// ┌────────────── Left hand ────────────────┐    ┌─────────────── Right hand ───────────────┐
+    KC_ESC, KC_NO,   MS_UP,   KC_NO,   KC_NO, /**/ MS_WHLU, KC_LCTL, KC_LSFT, KC_LALT, KC_NO, // Row 1
+    KC_NO,  MS_LEFT, MS_DOWN, MS_RGHT, KC_NO, /**/ MS_WHLD, MS_BTN1, MS_BTN2, KC_NO,   KC_NO, // Row 2
+    KC_NO,  MS_BTN3, MS_WHLL, MS_WHLR, KC_NO, /**/ KC_NO,   MS_ACL0, MS_ACL1, MS_ACL2, KC_NO, // Row 3
+// └────────────── Left hand ────────────────┘    └─────────────── Right hand ───────────────┘
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // KC_LALT,     TO(_SPECIAL),            GO_ALPHA, KC_TRANSPARENT
+  ),
+
+  [_LAYOUT_SELECTION] = LAYOUT(
+// ┌────────────── Left hand ─────────────────┐    ┌─────────────── Right hand ───────────────┐
+    KC_NO, KC_NO, SWAP_LTHUMB,SWAP_RTHUMB, KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 1
+    KC_NO, KC_NO, SWAP_HANDS, SWAP_THUMBS, KC_NO, /**/ KC_NO, GRAPHITE, ISRT,  COLEMAK_DH, QWERTY, // Row 2
+    KC_NO, KC_NO, KC_NO,       KC_NO,      KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
+// └────────────── Left hand ─────────────────┘    └─────────────── Right hand ───────────────┘
+    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    // KC_LALT,        TO(_SPECIAL),     GO_ALPHA, KC_TRANSPARENT
+  ),
+
 };
 
 // clang-format on
