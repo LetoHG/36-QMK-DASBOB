@@ -283,8 +283,8 @@ enum custom_keycodes {
 };
 
 // The third thumb key is not in use yet
-#define LEFT_THUMB_3 KC_NO
-#define RGHT_THUMB_3 KC_NO
+#define LEFT_THUMB_3 KC_BSPC
+#define RGHT_THUMB_3 KC_ENT
 
 const uint16_t PROGMEM thumb_shift_combo[] = {LEFT_THUMB_2, RGHT_THUMB_2, COMBO_END};
 combo_t                key_combos[]        = {
