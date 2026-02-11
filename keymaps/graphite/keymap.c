@@ -272,34 +272,20 @@ enum custom_keycodes {
     COLEMAK_DH,
     QWERTY,
     GO_ALPHA,
-    LEFT_THUMB_1,
-    LEFT_THUMB_2,
-    RGHT_THUMB_2,
-    RGHT_THUMB_1,
+    THUMB_LEFT_1,
+    THUMB_LEFT_2,
+    THUMB_RIGHT_2,
+    THUMB_RIGHT_1,
     SWAP_THUMBS,
     SWAP_RTHUMB,
     SWAP_LTHUMB,
     SWAP_HANDS,
+    SWAP_MODE,
 };
 
 // The third thumb key is not in use yet
-#define LEFT_THUMB_3 KC_BSPC
-#define RGHT_THUMB_3 KC_ENT
-
-const uint16_t PROGMEM thumb_shift_combo[] = {LEFT_THUMB_2, RGHT_THUMB_2, COMBO_END};
-combo_t                key_combos[]        = {
-    COMBO(thumb_shift_combo, KC_LSFT),
-};
-
-// void process_combo_event(uint16_t combo_index, bool pressed) {
-//   if (combo_index == 0) {
-//     if (pressed) {
-//       register_code(KC_LSFT);
-//     } else {
-//       unregister_code(KC_LSFT);
-//     }
-//   }
-// }
+#define THUMB_LEFT_3 KC_BSPC
+#define THUMB_RIGHT_3 KC_ENT
 
 // Tracks the current base layer
 uint8_t current_alpha_layer = _GRAPHITE;
@@ -342,13 +328,8 @@ bool handle_layout_switch(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
-uint8_t use_inner_thumb_key         = false;
-uint8_t thumb_cluster_right_swapped = false;
-uint8_t thumb_cluster_left_swapped  = false;
-uint8_t thumb_cluster_hands_swapped = false;
-
 uint16_t ctrl_press_time = 0;
-bool     handle_left_thumb_1(keyrecord_t *record) {
+bool thumb_ctrl_or_gui(keyrecord_t *record) {
     if (record->event.pressed) {
         if (IS_LAYER_ON(current_alpha_layer)) {
             ctrl_press_time = record->event.time;
@@ -371,7 +352,7 @@ bool     handle_left_thumb_1(keyrecord_t *record) {
     return false;
 }
 
-bool handle_left_thumb_2(keyrecord_t *record) {
+bool thumb_change_layer(keyrecord_t *record) {
     if (record->event.pressed) {
         if (IS_LAYER_ON(_SPECIAL)) {
             layer_move(_NUMBERS);
@@ -385,7 +366,7 @@ bool handle_left_thumb_2(keyrecord_t *record) {
 }
 
 uint16_t shift_press_time = 0;
-bool     handle_right_thumb_1(keyrecord_t *record) {
+bool thumb_shift(keyrecord_t *record) {
     if (record->event.pressed) {
         shift_press_time = record->event.time;
         register_code(KC_LSFT);
@@ -400,7 +381,7 @@ bool     handle_right_thumb_1(keyrecord_t *record) {
     return false;
 }
 
-bool handle_right_thumb_2(keyrecord_t *record) {
+bool thumb_to_alpha_or_space(keyrecord_t *record) {
     if (record->event.pressed) {
         if (IS_LAYER_ON(current_alpha_layer)) {
             register_code(KC_SPC);
@@ -413,59 +394,101 @@ bool handle_right_thumb_2(keyrecord_t *record) {
     return false;
 }
 
-bool handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
+
+typedef enum {
+    THUMB_L1,
+    THUMB_L2,
+    THUMB_L3,
+    THUMB_R1,
+    THUMB_R2,
+    THUMB_R3,
+    THUMB_POS_COUNT
+} thumb_pos_t;
+
+thumb_pos_t keycode_to_thumb(uint16_t keycode) {
+    // clang-format off
     switch (keycode) {
-        case LEFT_THUMB_1:
-            if (thumb_cluster_hands_swapped) {
-                return thumb_cluster_left_swapped ? handle_right_thumb_2(record) : handle_right_thumb_1(record);
-            }
-            return thumb_cluster_left_swapped ? handle_left_thumb_2(record) : handle_left_thumb_1(record);
-        case LEFT_THUMB_2:
-            if (thumb_cluster_hands_swapped) {
-                return thumb_cluster_left_swapped ? handle_right_thumb_1(record) : handle_right_thumb_2(record);
-            }
-            return thumb_cluster_left_swapped ? handle_left_thumb_1(record) : handle_left_thumb_2(record);
+        case THUMB_LEFT_1:  return THUMB_L1;
+        case THUMB_LEFT_2:  return THUMB_L2;
+        // case THUMB_LEFT_3:  return THUMB_L3;
+        case THUMB_RIGHT_1: return THUMB_R1;
+        case THUMB_RIGHT_2: return THUMB_R2;
+        // case THUMB_RIGHT_3: return THUMB_R3;
+        default: return THUMB_POS_COUNT;
+    }
+    // clang-format on
+}
 
-        case RGHT_THUMB_1:
-            if (thumb_cluster_hands_swapped) {
-                return thumb_cluster_right_swapped ? handle_left_thumb_2(record) : handle_left_thumb_1(record);
-            }
-            return thumb_cluster_right_swapped ? handle_right_thumb_2(record) : handle_right_thumb_1(record);
-        case RGHT_THUMB_2:
-            if (thumb_cluster_hands_swapped) {
-                return thumb_cluster_right_swapped ? handle_left_thumb_1(record) : handle_left_thumb_2(record);
-            }
-            return thumb_cluster_right_swapped ? handle_right_thumb_1(record) : handle_right_thumb_2(record);
+typedef bool(*thumb_behavior_t)(keyrecord_t *);
 
-        case SWAP_THUMBS:
-            if (record->event.pressed) {
-                thumb_cluster_right_swapped = !thumb_cluster_right_swapped;
-                thumb_cluster_left_swapped  = !thumb_cluster_left_swapped;
-                layer_move(current_alpha_layer);
+thumb_behavior_t thumbkey_behaviours[6] = {
+    [THUMB_L1] = thumb_to_alpha_or_space,
+    [THUMB_L2] = thumb_ctrl_or_gui,
+    [THUMB_L3] = NULL,
+    [THUMB_R1] = thumb_change_layer,
+    [THUMB_R2] = thumb_shift,
+    [THUMB_R3] = NULL,
+};
+
+void swap_behaviours(uint8_t a, uint8_t b) {
+    thumbkey_behaviour_t tmp = thumbkey_behaviours[a];
+    thumbkey_behaviours[a] = thumbkey_behaviours[b];
+    thumbkey_behaviours[b] = tmp;
+}
+
+bool handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
+    thumb_pos_t phys = keycode_to_thumb(keycode);
+
+    if (phys != THUMB_POS_COUNT) {
+        if (swap_active && record->event.pressed) {
+            if (first_selected == THUMB_THUMB_COUNT) {
+                first_selected = phys;
+            } else {
+                swap_behaviours(first_selected, phys);
+                swap_active = false;
+                first_selected = THUMB_THUMB_COUNT;
             }
             return false;
-        case SWAP_RTHUMB:
-            if (record->event.pressed) {
-                thumb_cluster_right_swapped = !thumb_cluster_right_swapped;
-                layer_move(current_alpha_layer);
-            }
+        }
+
+        thumb_behavior_t behavior = thumbkey_behaviours[phys];
+        if (behavior) {
+            behavior(record);
             return false;
-        case SWAP_LTHUMB:
+        }
+    }
+
+    switch(keycode){
+        case SWAP_MODE:
             if (record->event.pressed) {
-                thumb_cluster_left_swapped = !thumb_cluster_left_swapped;
-                layer_move(current_alpha_layer);
+                swap_active = true;
             }
-            return false;
+            break;
         case SWAP_HANDS:
             if (record->event.pressed) {
-                thumb_cluster_hands_swapped = !thumb_cluster_hands_swapped;
-                layer_move(current_alpha_layer);
+                swap_behaviours(THUMB_L1, THUMB_R1);
+                swap_behaviours(THUMB_L2, THUMB_R2);
+                swap_behaviours(THUMB_L3, THUMB_R3);
             }
-            return false;
-        default:
+            break;
+        case SWAP_THUMBS:
+            if (record->event.pressed) {
+                swap_behaviours(THUMB_L1,THUMB_L2);
+                swap_behaviours(THUMB_R1,THUMB_R2);
+            }
+            break;
+        case SWAP_LTHUMB:
+            if (record->event.pressed) {
+                swap_behaviours(THUMB_L1,THUMB_L2);
+            }
+            break;
+        case SWAP_RTHUMB:
+            if (record->event.pressed) {
+                swap_behaviours(THUMB_R1,THUMB_R2);
+            }
             break;
     }
-    return true;
+    return false;
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -477,14 +500,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case GO_ALPHA:
             return handle_layout_switch(keycode, record);
 
-        case LEFT_THUMB_1:
-        case LEFT_THUMB_2:
-        case RGHT_THUMB_2:
-        case RGHT_THUMB_1:
+        case THUMB_LEFT_1:
+        case THUMB_LEFT_2:
+        case THUMB_RIGHT_2:
+        case THUMB_RIGHT_1:
         case SWAP_THUMBS:
         case SWAP_RTHUMB:
         case SWAP_LTHUMB:
         case SWAP_HANDS:
+        case SWAP_MODE:
             return handle_thumb_keys(keycode, record);
         default:
             break;
@@ -499,7 +523,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_B, KC_L,               KC_D,              KC_W,              KC_Z, /**/ KC_BSPC, KC_F,              KC_O,              KC_U,               KC_J,            // Row 1
     KC_N, LT(_NUMBERS, KC_R), MT(MOD_LALT,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y,    MT(MOD_RGUI,KC_H), MT(MOD_RALT,KC_A), LT(_SPECIAL, KC_E), KC_I,            // Row 2
     KC_Q, KC_X,               KC_M,              KC_C,              KC_V, /**/ KC_K,    KC_P,              TD(COMMA_MINUS),   TD(DOT_EXLM),       TD(SLASH_UNDS),  // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
   ),
 
   [_ISRT] = LAYOUT(
@@ -507,7 +531,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Y, KC_C, KC_L,              KC_M,              KC_K, /**/ KC_Z, KC_F,              KC_U,              TD(COMMA_MINUS), KC_BSPC, // Row 1
     KC_I, KC_S, MT(MOD_LALT,KC_R), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_P, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_A,            KC_O,    // Row 2
     KC_Q, KC_V, KC_W,              KC_D,              KC_J, /**/ KC_B, KC_H,              TD(SLASH_UNDS),    TD(DOT_EXLM),    KC_X,    // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
@@ -516,7 +540,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Q, KC_W, KC_F,              KC_P,              KC_B, /**/ KC_J, KC_L,              KC_U,              KC_Y,         KC_BSPC,        // Row 1
     KC_A, KC_R, MT(MOD_LALT,KC_S), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_M, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_I,         KC_O,           // Row 2
     KC_Z, KC_X, KC_C,              KC_D,              KC_V, /**/ KC_K, KC_H,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
@@ -525,7 +549,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Q, KC_W, KC_E,              KC_R,              KC_T, /**/ KC_Y, KC_U,              KC_I,              KC_O,         KC_P,           // Row 1
     KC_A, KC_S, MT(MOD_LALT,KC_D), MT(MOD_LGUI,KC_F), KC_G, /**/ KC_H, MT(MOD_RGUI,KC_J), MT(MOD_RALT,KC_K), KC_L,         KC_SCLN,        // Row 2
     KC_Z, KC_X, KC_C,              KC_V,              KC_B, /**/ KC_N, KC_M,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // OSM(MOD_LCTL),     TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
   ),
 
@@ -534,7 +558,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     TD(ESC_FORCE_QUIT_VIM), KC_UNDS,      KC_LBRC, KC_RBRC, TD(CIRC_QUIT_VIM), /**/ KC_PLUS,       KC_LABK, KC_RABK,          KC_EQUAL, KC_BSPC,         // Row 1
     KC_TAB,                 TD(SL_BKSL),  KC_LCBR, KC_RCBR, KC_ASTR,           /**/ KC_MINS,       KC_LPRN, KC_RPRN,          KC_SCLN,  KC_ENT,          // Row 2
     TD(HASH_AT),            TD(DLR_PERC), KC_PIPE, KC_TILD, KC_GRV,            /**/ TD(EXLM_QUES), KC_AMPR, TD(DQUOTE_QUOTE), KC_COLN,  TO(_NAVIGATION), // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // LALT(KC_LCTL),         TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
   ),
 
@@ -543,7 +567,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_ESCAPE,          KC_MEDIA_PLAY_PAUSE, KC_MEDIA_PREV_TRACK, KC_MEDIA_NEXT_TRACK, KC_SLASH,          /**/ KC_PLUS,            KC_7,               KC_8,               KC_9,               KC_BSPC,       // Row 1
     KC_TAB,             KC_LALT,             KC_LSFT,             KC_LCTL,             KC_ASTR,           /**/ KC_MINS,            TD(HEX_NUMPAD_4_D), TD(HEX_NUMPAD_5_E), TD(HEX_NUMPAD_6_F), KC_ENT,        // Row 2
     KC_BRIGHTNESS_DOWN, KC_BRIGHTNESS_UP,    KC_AUDIO_VOL_DOWN,   KC_AUDIO_VOL_UP,     TD(DEC_DOT_COMMA), /**/ TD(HEX_NUMPAD_0_X), TD(HEX_NUMPAD_1_A), TD(HEX_NUMPAD_2_B), TD(HEX_NUMPAD_3_C), TO(_FUNCTION), // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // KC_LGUI,                TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
   ),
 
@@ -552,7 +576,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_ESC,     KC_NO,      KC_WBAK,    KC_WFWD,    KC_NO,      /**/ KC_PGUP, KC_HOME,    KC_END, KC_PGDN,  KC_BSPC,   // Row 1
     KC_TAB,     KC_LALT,    KC_LSFT,    KC_LCTL,    LCTL(KC_S), /**/ KC_LEFT, KC_DOWN,    KC_UP,  KC_RIGHT, KC_ENT,    // Row 2
     LCTL(KC_Z), LCTL(KC_X), LCTL(KC_C), LCTL(KC_V), LCTL(KC_Y), /**/ KC_NO,   TO(_MOUSE), KC_NO,  KC_NO,    KC_DELETE, // Row 3
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // KC_LGUI,      TO(_SPECIAL),          GO_ALPHA, KC_TRANSPARENT
   ),
 
@@ -562,7 +586,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  KC_LALT, KC_LSFT, KC_LCTL,      KC_NO,            /**/ KC_NO, KC_F5, KC_F6,  KC_F7,  KC_F8,  // Row 2
     KC_NO,  KC_NO,   KC_NO,   KC_NO,        KC_NO,            /**/ KC_NO, KC_F9, KC_F10, KC_F11, KC_F12, // Row 3
 // └────────────────────── Left hand ────────────────────────┘    └──────────── Right hand ─────────────┘
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // KC_LALT,      TO(_SPECIAL),        GO_ALPHA, KC_TRANSPARENT
   ),
 
@@ -572,7 +596,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  MS_LEFT, MS_DOWN, MS_RGHT, KC_NO, /**/ MS_WHLD, MS_BTN1, MS_BTN2, KC_NO,   KC_NO, // Row 2
     KC_NO,  MS_BTN3, MS_WHLL, MS_WHLR, KC_NO, /**/ KC_NO,   MS_ACL0, MS_ACL1, MS_ACL2, KC_NO, // Row 3
 // └────────────── Left hand ────────────────┘    └─────────────── Right hand ───────────────┘
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // KC_LALT,     TO(_SPECIAL),            GO_ALPHA, KC_TRANSPARENT
   ),
 
@@ -580,9 +604,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 // ┌────────────── Left hand ─────────────────┐    ┌─────────────── Right hand ───────────────┐
     KC_NO, KC_NO, SWAP_LTHUMB,SWAP_RTHUMB, KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 1
     KC_NO, KC_NO, SWAP_HANDS, SWAP_THUMBS, KC_NO, /**/ KC_NO, GRAPHITE, ISRT,  COLEMAK_DH, QWERTY, // Row 2
-    KC_NO, KC_NO, KC_NO,       KC_NO,      KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
+    SWAP_MODE, KC_NO, KC_NO,  KC_NO,       KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
 // └────────────── Left hand ─────────────────┘    └─────────────── Right hand ───────────────┘
-    LEFT_THUMB_3, LEFT_THUMB_1, LEFT_THUMB_2, /**/ RGHT_THUMB_2, RGHT_THUMB_1, RGHT_THUMB_3  // Thumbs
+    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     // KC_LALT,        TO(_SPECIAL),     GO_ALPHA, KC_TRANSPARENT
   ),
 
