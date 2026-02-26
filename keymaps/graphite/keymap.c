@@ -1,4 +1,5 @@
 
+#include <sys/types.h>
 #include QMK_KEYBOARD_H
 
 extern bool g_suspend_state;
@@ -274,6 +275,8 @@ enum custom_keycodes {
     GO_ALPHA,
     THUMB_LEFT_1,
     THUMB_LEFT_2,
+    THUMB_LEFT_3,
+    THUMB_RIGHT_3,
     THUMB_RIGHT_2,
     THUMB_RIGHT_1,
     SWAP_THUMBS,
@@ -284,8 +287,10 @@ enum custom_keycodes {
 };
 
 // The third thumb key is not in use yet
-#define THUMB_LEFT_3 KC_BSPC
-#define THUMB_RIGHT_3 KC_ENT
+// #define THUMB_LEFT_3 KC_ENT
+// #define THUMB_RIGHT_3 GO_ALPHA
+
+//==============================================================================
 
 // Tracks the current base layer
 uint8_t current_alpha_layer = _GRAPHITE;
@@ -328,7 +333,10 @@ bool handle_layout_switch(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
+//==============================================================================
+
 uint16_t ctrl_press_time = 0;
+
 bool thumb_ctrl_or_gui(keyrecord_t *record) {
     if (record->event.pressed) {
         if (IS_LAYER_ON(current_alpha_layer)) {
@@ -352,6 +360,10 @@ bool thumb_ctrl_or_gui(keyrecord_t *record) {
     return false;
 }
 
+//==============================================================================
+
+uint16_t alpha_layer_press_time = 0;
+
 bool thumb_change_layer(keyrecord_t *record) {
     if (record->event.pressed) {
         if (IS_LAYER_ON(_SPECIAL)) {
@@ -361,11 +373,17 @@ bool thumb_change_layer(keyrecord_t *record) {
         } else {
             layer_move(_SPECIAL);
         }
+    } else if ((record->event.time - alpha_layer_press_time) >= TAPPING_TERM) {
+        // TAP → oneshot layer
+        layer_move(current_alpha_layer);
     }
     return false;
 }
 
+//==============================================================================
+
 uint16_t shift_press_time = 0;
+
 bool thumb_shift(keyrecord_t *record) {
     if (record->event.pressed) {
         shift_press_time = record->event.time;
@@ -381,84 +399,96 @@ bool thumb_shift(keyrecord_t *record) {
     return false;
 }
 
+//==============================================================================
+
 bool thumb_to_alpha_or_space(keyrecord_t *record) {
     if (record->event.pressed) {
-        if (IS_LAYER_ON(current_alpha_layer)) {
-            register_code(KC_SPC);
-        } else {
-            layer_move(current_alpha_layer);
-        }
+        // if (IS_LAYER_ON(current_alpha_layer)) {
+        register_code(KC_SPC);
+        // } else {
+        //     layer_move(current_alpha_layer);
+        // }
     } else {
         unregister_code(KC_SPC);
     }
     return false;
 }
 
+//==============================================================================
 
-typedef enum {
-    THUMB_L1,
-    THUMB_L2,
-    THUMB_L3,
-    THUMB_R1,
-    THUMB_R2,
-    THUMB_R3,
-    THUMB_POS_COUNT
-} thumb_pos_t;
+bool thumb_to_alpha(keyrecord_t *record) {
+    if (record->event.pressed) {
+        layer_move(current_alpha_layer);
+    }
+    return false;
+}
+
+//==============================================================================
+
+bool thumb_enter(keyrecord_t *record) {
+    if (record->event.pressed) {
+        register_code(KC_ENT);
+    } else {
+        unregister_code(KC_ENT);
+    }
+    return false;
+}
+
+//==============================================================================
+
+typedef enum { THUMB_L1, THUMB_L2, THUMB_L3, THUMB_R1, THUMB_R2, THUMB_R3, THUMB_POS_COUNT } thumb_pos_t;
 
 thumb_pos_t keycode_to_thumb(uint16_t keycode) {
     // clang-format off
     switch (keycode) {
         case THUMB_LEFT_1:  return THUMB_L1;
         case THUMB_LEFT_2:  return THUMB_L2;
-        // case THUMB_LEFT_3:  return THUMB_L3;
+        case THUMB_LEFT_3:  return THUMB_L3;
         case THUMB_RIGHT_1: return THUMB_R1;
         case THUMB_RIGHT_2: return THUMB_R2;
-        // case THUMB_RIGHT_3: return THUMB_R3;
+        case THUMB_RIGHT_3: return THUMB_R3;
         default: return THUMB_POS_COUNT;
     }
     // clang-format on
 }
 
-typedef bool(*thumb_behavior_t)(keyrecord_t *);
+typedef bool (*thumb_behavior_t)(keyrecord_t *);
 
-thumb_behavior_t thumbkey_behaviours[6] = {
-    [THUMB_L1] = thumb_to_alpha_or_space,
-    [THUMB_L2] = thumb_ctrl_or_gui,
-    [THUMB_L3] = NULL,
-    [THUMB_R1] = thumb_change_layer,
-    [THUMB_R2] = thumb_shift,
-    [THUMB_R3] = NULL,
+thumb_behavior_t thumbkey_behaviors[6] = {
+    [THUMB_L1] = thumb_to_alpha_or_space, [THUMB_L2] = thumb_ctrl_or_gui, [THUMB_L3] = NULL, [THUMB_R1] = thumb_change_layer, [THUMB_R2] = thumb_shift, [THUMB_R3] = NULL,
 };
 
-void swap_behaviours(uint8_t a, uint8_t b) {
-    thumbkey_behaviour_t tmp = thumbkey_behaviours[a];
-    thumbkey_behaviours[a] = thumbkey_behaviours[b];
-    thumbkey_behaviours[b] = tmp;
+void swap_behaviors(uint8_t a, uint8_t b) {
+    thumb_behavior_t tmp  = thumbkey_behaviors[a];
+    thumbkey_behaviors[a] = thumbkey_behaviors[b];
+    thumbkey_behaviors[b] = tmp;
 }
 
-bool handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
+uint16_t first_selected = THUMB_POS_COUNT;
+bool     swap_active    = false;
+bool     handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
     thumb_pos_t phys = keycode_to_thumb(keycode);
 
     if (phys != THUMB_POS_COUNT) {
         if (swap_active && record->event.pressed) {
-            if (first_selected == THUMB_THUMB_COUNT) {
+            if (first_selected == THUMB_POS_COUNT) {
                 first_selected = phys;
             } else {
-                swap_behaviours(first_selected, phys);
-                swap_active = false;
-                first_selected = THUMB_THUMB_COUNT;
+                swap_behaviors(first_selected, phys);
+                swap_active    = false;
+                first_selected = THUMB_POS_COUNT;
             }
             return false;
         }
 
-        thumb_behavior_t behavior = thumbkey_behaviours[phys];
+        thumb_behavior_t behavior = thumbkey_behaviors[phys];
         if (behavior) {
             behavior(record);
             return false;
         }
     }
 
-    switch(keycode){
+    switch (keycode) {
         case SWAP_MODE:
             if (record->event.pressed) {
                 swap_active = true;
@@ -466,25 +496,25 @@ bool handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
             break;
         case SWAP_HANDS:
             if (record->event.pressed) {
-                swap_behaviours(THUMB_L1, THUMB_R1);
-                swap_behaviours(THUMB_L2, THUMB_R2);
-                swap_behaviours(THUMB_L3, THUMB_R3);
+                swap_behaviors(THUMB_L1, THUMB_R1);
+                swap_behaviors(THUMB_L2, THUMB_R2);
+                swap_behaviors(THUMB_L3, THUMB_R3);
             }
             break;
         case SWAP_THUMBS:
             if (record->event.pressed) {
-                swap_behaviours(THUMB_L1,THUMB_L2);
-                swap_behaviours(THUMB_R1,THUMB_R2);
+                swap_behaviors(THUMB_L1, THUMB_L2);
+                swap_behaviors(THUMB_R1, THUMB_R2);
             }
             break;
         case SWAP_LTHUMB:
             if (record->event.pressed) {
-                swap_behaviours(THUMB_L1,THUMB_L2);
+                swap_behaviors(THUMB_L1, THUMB_L2);
             }
             break;
         case SWAP_RTHUMB:
             if (record->event.pressed) {
-                swap_behaviours(THUMB_R1,THUMB_R2);
+                swap_behaviors(THUMB_R1, THUMB_R2);
             }
             break;
     }
@@ -521,7 +551,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_GRAPHITE] = LAYOUT(
 // ┌───────────────────────────── Left hand ─────────────────────────────┐    ┌────────────────────────────────── Right hand ─────────────────────────────────────┐
     KC_B, KC_L,               KC_D,              KC_W,              KC_Z, /**/ KC_BSPC, KC_F,              KC_O,              KC_U,               KC_J,            // Row 1
-    KC_N, LT(_NUMBERS, KC_R), MT(MOD_LALT,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y,    MT(MOD_RGUI,KC_H), MT(MOD_RALT,KC_A), LT(_SPECIAL, KC_E), KC_I,            // Row 2
+    LT(_SPECIAL, KC_N), LT(_NUMBERS, KC_R), MT(MOD_LALT,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y,    MT(MOD_RGUI,KC_H), MT(MOD_RALT,KC_A), LT(_NUMBERS, KC_E), LT(_SPECIAL, KC_I),            // Row 2
     KC_Q, KC_X,               KC_M,              KC_C,              KC_V, /**/ KC_K,    KC_P,              TD(COMMA_MINUS),   TD(DOT_EXLM),       TD(SLASH_UNDS),  // Row 3
     THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
   ),
