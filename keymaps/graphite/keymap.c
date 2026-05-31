@@ -275,7 +275,7 @@ enum custom_keycodes {
     GO_ALPHA,
     THUMB_LEFT_1,
     THUMB_LEFT_2,
-    THUMB_LEFT_3,
+    // THUMB_LEFT_3,
     THUMB_RIGHT_3,
     THUMB_RIGHT_2,
     THUMB_RIGHT_1,
@@ -287,7 +287,7 @@ enum custom_keycodes {
 };
 
 // The third thumb key is not in use yet
-// #define THUMB_LEFT_3 KC_ENT
+#define THUMB_LEFT_3 LT(_NAVIGATION, KC_ENT)
 // #define THUMB_RIGHT_3 GO_ALPHA
 
 //==============================================================================
@@ -366,6 +366,7 @@ uint16_t alpha_layer_press_time = 0;
 
 bool thumb_change_layer(keyrecord_t *record) {
     if (record->event.pressed) {
+        alpha_layer_press_time = record->event.time;
         if (IS_LAYER_ON(_SPECIAL)) {
             layer_move(_NUMBERS);
         } else if (IS_LAYER_ON(_NUMBERS)) {
@@ -373,9 +374,11 @@ bool thumb_change_layer(keyrecord_t *record) {
         } else {
             layer_move(_SPECIAL);
         }
-    } else if ((record->event.time - alpha_layer_press_time) >= TAPPING_TERM) {
-        // TAP → oneshot layer
-        layer_move(current_alpha_layer);
+    } else {
+        if ((record->event.time - alpha_layer_press_time) >= TAPPING_TERM) {
+            // HOLD → return to alpha layer
+            layer_move(current_alpha_layer);
+        }
     }
     return false;
 }
@@ -443,7 +446,7 @@ thumb_pos_t keycode_to_thumb(uint16_t keycode) {
     switch (keycode) {
         case THUMB_LEFT_1:  return THUMB_L1;
         case THUMB_LEFT_2:  return THUMB_L2;
-        case THUMB_LEFT_3:  return THUMB_L3;
+        // case THUMB_LEFT_3:  return THUMB_L3;
         case THUMB_RIGHT_1: return THUMB_R1;
         case THUMB_RIGHT_2: return THUMB_R2;
         case THUMB_RIGHT_3: return THUMB_R3;
@@ -455,7 +458,7 @@ thumb_pos_t keycode_to_thumb(uint16_t keycode) {
 typedef bool (*thumb_behavior_t)(keyrecord_t *);
 
 thumb_behavior_t thumbkey_behaviors[6] = {
-    [THUMB_L1] = thumb_to_alpha_or_space, [THUMB_L2] = thumb_ctrl_or_gui, [THUMB_L3] = NULL, [THUMB_R1] = thumb_change_layer, [THUMB_R2] = thumb_shift, [THUMB_R3] = NULL,
+    [THUMB_L1] = thumb_to_alpha_or_space, [THUMB_L2] = thumb_ctrl_or_gui, [THUMB_L3] = thumb_enter, [THUMB_R1] = thumb_change_layer, [THUMB_R2] = thumb_shift, [THUMB_R3] = thumb_to_alpha,
 };
 
 void swap_behaviors(uint8_t a, uint8_t b) {
@@ -532,6 +535,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
         case THUMB_LEFT_1:
         case THUMB_LEFT_2:
+        case THUMB_RIGHT_3:
         case THUMB_RIGHT_2:
         case THUMB_RIGHT_1:
         case SWAP_THUMBS:
@@ -553,7 +557,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_B, KC_L,               KC_D,              KC_W,              KC_Z, /**/ KC_BSPC, KC_F,              KC_O,              KC_U,               KC_J,            // Row 1
     LT(_SPECIAL, KC_N), LT(_NUMBERS, KC_R), MT(MOD_LALT,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y,    MT(MOD_RGUI,KC_H), MT(MOD_RALT,KC_A), LT(_NUMBERS, KC_E), LT(_SPECIAL, KC_I),            // Row 2
     KC_Q, KC_X,               KC_M,              KC_C,              KC_V, /**/ KC_K,    KC_P,              TD(COMMA_MINUS),   TD(DOT_EXLM),       TD(SLASH_UNDS),  // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, OSM(MOD_LCTL), OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_ISRT] = LAYOUT(
@@ -561,8 +566,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Y, KC_C, KC_L,              KC_M,              KC_K, /**/ KC_Z, KC_F,              KC_U,              TD(COMMA_MINUS), KC_BSPC, // Row 1
     KC_I, KC_S, MT(MOD_LALT,KC_R), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_P, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_A,            KC_O,    // Row 2
     KC_Q, KC_V, KC_W,              KC_D,              KC_J, /**/ KC_B, KC_H,              TD(SLASH_UNDS),    TD(DOT_EXLM),    KC_X,    // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, OSM(MOD_LCTL), OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_COLEMAK_DH] = LAYOUT(
@@ -570,8 +575,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Q, KC_W, KC_F,              KC_P,              KC_B, /**/ KC_J, KC_L,              KC_U,              KC_Y,         KC_BSPC,        // Row 1
     KC_A, KC_R, MT(MOD_LALT,KC_S), MT(MOD_LGUI,KC_T), KC_G, /**/ KC_M, MT(MOD_RGUI,KC_N), MT(MOD_RALT,KC_E), KC_I,         KC_O,           // Row 2
     KC_Z, KC_X, KC_C,              KC_D,              KC_V, /**/ KC_K, KC_H,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // OSM(MOD_LCTL),        TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, OSM(MOD_LCTL), OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_QWERTY] = LAYOUT(
@@ -579,8 +584,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_Q, KC_W, KC_E,              KC_R,              KC_T, /**/ KC_Y, KC_U,              KC_I,              KC_O,         KC_P,           // Row 1
     KC_A, KC_S, MT(MOD_LALT,KC_D), MT(MOD_LGUI,KC_F), KC_G, /**/ KC_H, MT(MOD_RGUI,KC_J), MT(MOD_RALT,KC_K), KC_L,         KC_SCLN,        // Row 2
     KC_Z, KC_X, KC_C,              KC_V,              KC_B, /**/ KC_N, KC_M,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // OSM(MOD_LCTL),     TO(_SPECIAL),        KC_SPACE, OSM(MOD_LSFT)
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, OSM(MOD_LCTL), OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_SPECIAL] = LAYOUT(
@@ -588,8 +593,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     TD(ESC_FORCE_QUIT_VIM), KC_UNDS,      KC_LBRC, KC_RBRC, TD(CIRC_QUIT_VIM), /**/ KC_PLUS,       KC_LABK, KC_RABK,          KC_EQUAL, KC_BSPC,         // Row 1
     KC_TAB,                 TD(SL_BKSL),  KC_LCBR, KC_RCBR, KC_ASTR,           /**/ KC_MINS,       KC_LPRN, KC_RPRN,          KC_SCLN,  KC_ENT,          // Row 2
     TD(HASH_AT),            TD(DLR_PERC), KC_PIPE, KC_TILD, KC_GRV,            /**/ TD(EXLM_QUES), KC_AMPR, TD(DQUOTE_QUOTE), KC_COLN,  TO(_NAVIGATION), // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // LALT(KC_LCTL),         TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, OSM(MOD_LCTL), OSM(MOD_LSFT), TO(_NUMBERS), GO_ALPHA
   ),
 
   [_NUMBERS] = LAYOUT(
@@ -597,8 +602,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_ESCAPE,          KC_MEDIA_PLAY_PAUSE, KC_MEDIA_PREV_TRACK, KC_MEDIA_NEXT_TRACK, KC_SLASH,          /**/ KC_PLUS,            KC_7,               KC_8,               KC_9,               KC_BSPC,       // Row 1
     KC_TAB,             KC_LALT,             KC_LSFT,             KC_LCTL,             KC_ASTR,           /**/ KC_MINS,            TD(HEX_NUMPAD_4_D), TD(HEX_NUMPAD_5_E), TD(HEX_NUMPAD_6_F), KC_ENT,        // Row 2
     KC_BRIGHTNESS_DOWN, KC_BRIGHTNESS_UP,    KC_AUDIO_VOL_DOWN,   KC_AUDIO_VOL_UP,     TD(DEC_DOT_COMMA), /**/ TD(HEX_NUMPAD_0_X), TD(HEX_NUMPAD_1_A), TD(HEX_NUMPAD_2_B), TD(HEX_NUMPAD_3_C), TO(_FUNCTION), // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // KC_LGUI,                TO(_NUMBERS),             GO_ALPHA, OSM(MOD_LSFT)
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, KC_LGUI, OSM(MOD_LSFT), TO(_NUMBERS), GO_ALPHA
   ),
 
   [_NAVIGATION] = LAYOUT(
@@ -606,8 +611,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_ESC,     KC_NO,      KC_WBAK,    KC_WFWD,    KC_NO,      /**/ KC_PGUP, KC_HOME,    KC_END, KC_PGDN,  KC_BSPC,   // Row 1
     KC_TAB,     KC_LALT,    KC_LSFT,    KC_LCTL,    LCTL(KC_S), /**/ KC_LEFT, KC_DOWN,    KC_UP,  KC_RIGHT, KC_ENT,    // Row 2
     LCTL(KC_Z), LCTL(KC_X), LCTL(KC_C), LCTL(KC_V), LCTL(KC_Y), /**/ KC_NO,   TO(_MOUSE), KC_NO,  KC_NO,    KC_DELETE, // Row 3
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // KC_LGUI,      TO(_SPECIAL),          GO_ALPHA, KC_TRANSPARENT
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, KC_LGUI, OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_FUNCTION] = LAYOUT(
@@ -616,8 +621,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  KC_LALT, KC_LSFT, KC_LCTL,      KC_NO,            /**/ KC_NO, KC_F5, KC_F6,  KC_F7,  KC_F8,  // Row 2
     KC_NO,  KC_NO,   KC_NO,   KC_NO,        KC_NO,            /**/ KC_NO, KC_F9, KC_F10, KC_F11, KC_F12, // Row 3
 // └────────────────────── Left hand ────────────────────────┘    └──────────── Right hand ─────────────┘
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // KC_LALT,      TO(_SPECIAL),        GO_ALPHA, KC_TRANSPARENT
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, KC_LGUI, OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_MOUSE] = LAYOUT(
@@ -626,8 +631,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  MS_LEFT, MS_DOWN, MS_RGHT, KC_NO, /**/ MS_WHLD, MS_BTN1, MS_BTN2, KC_NO,   KC_NO, // Row 2
     KC_NO,  MS_BTN3, MS_WHLL, MS_WHLR, KC_NO, /**/ KC_NO,   MS_ACL0, MS_ACL1, MS_ACL2, KC_NO, // Row 3
 // └────────────── Left hand ────────────────┘    └─────────────── Right hand ───────────────┘
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // KC_LALT,     TO(_SPECIAL),            GO_ALPHA, KC_TRANSPARENT
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, KC_LGUI, OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
   [_LAYOUT_SELECTION] = LAYOUT(
@@ -636,8 +641,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO, KC_NO, SWAP_HANDS, SWAP_THUMBS, KC_NO, /**/ KC_NO, GRAPHITE, ISRT,  COLEMAK_DH, QWERTY, // Row 2
     SWAP_MODE, KC_NO, KC_NO,  KC_NO,       KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
 // └────────────── Left hand ─────────────────┘    └─────────────── Right hand ───────────────┘
-    THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    // KC_LALT,        TO(_SPECIAL),     GO_ALPHA, KC_TRANSPARENT
+    // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
+    LT(_NAVIGATION, KC_ENT), KC_SPACE, KC_LGUI, OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
   ),
 
 };
