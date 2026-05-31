@@ -219,7 +219,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_NAVIGATION] = LAYOUT(
 // ┌─────────────────────── Left hand ─────────────────────────┐    ┌───────────────── Right hand ────────────────────┐
-    KC_ESC,     KC_NO,      KC_WBAK,    KC_WFWD,    KC_NO,      /**/ KC_PGUP, KC_HOME,    KC_END, KC_PGDN,  KC_BSPC,   // Row 1
+    KC_ESC,     KC_BSPC,      KC_WBAK,    KC_WFWD,    KC_NO,      /**/ KC_PGUP, KC_HOME,    KC_END, KC_PGDN,  KC_BSPC,   // Row 1
     KC_TAB,     KC_LALT,    KC_LSFT,    KC_LCTL,    LCTL(KC_S), /**/ KC_LEFT, KC_DOWN,    KC_UP,  KC_RIGHT, KC_ENT,    // Row 2
     LCTL(KC_Z), LCTL(KC_X), LCTL(KC_C), LCTL(KC_V), LCTL(KC_Y), /**/ KC_NO,   TO(_MOUSE), KC_NO,  KC_NO,    KC_DELETE, // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
@@ -228,7 +228,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_FUNCTION] = LAYOUT(
 // ┌────────────────────── Left hand ────────────────────────┐    ┌──────────── Right hand ─────────────┐
-    KC_ESC, KC_NO,   KC_NO,   KC_NO,   TO(_LAYOUT_SELECTION), /**/ KC_NO, KC_F1, KC_F2,  KC_F3,  KC_F4,  // Row 1
+    KC_ESC, KC_BSPC,   KC_NO,   KC_NO,   TO(_LAYOUT_SELECTION), /**/ KC_NO, KC_F1, KC_F2,  KC_F3,  KC_F4,  // Row 1
     KC_NO,  KC_LALT, KC_LSFT, KC_LCTL,      KC_NO,            /**/ KC_NO, KC_F5, KC_F6,  KC_F7,  KC_F8,  // Row 2
     KC_NO,  KC_NO,   KC_NO,   KC_NO,        KC_NO,            /**/ KC_NO, KC_F9, KC_F10, KC_F11, KC_F12, // Row 3
 // └────────────────────── Left hand ────────────────────────┘    └──────────── Right hand ─────────────┘
@@ -238,7 +238,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_MOUSE] = LAYOUT(
 // ┌────────────── Left hand ────────────────┐    ┌─────────────── Right hand ───────────────┐
-    KC_ESC, KC_NO,   MS_UP,   KC_NO,   KC_NO, /**/ MS_WHLU, KC_LCTL, KC_LSFT, KC_LALT, KC_NO, // Row 1
+    KC_ESC, KC_BSPC,   MS_UP,   KC_NO,   KC_NO, /**/ MS_WHLU, KC_LCTL, KC_LSFT, KC_LALT, KC_NO, // Row 1
     KC_NO,  MS_LEFT, MS_DOWN, MS_RGHT, KC_NO, /**/ MS_WHLD, MS_BTN1, MS_BTN2, KC_NO,   KC_NO, // Row 2
     KC_NO,  MS_BTN3, MS_WHLL, MS_WHLR, KC_NO, /**/ KC_NO,   MS_ACL0, MS_ACL1, MS_ACL2, KC_NO, // Row 3
 // └────────────── Left hand ────────────────┘    └─────────────── Right hand ───────────────┘
