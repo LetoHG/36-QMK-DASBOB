@@ -1,185 +1,12 @@
 
 #include <sys/types.h>
 #include QMK_KEYBOARD_H
+#include "tapdance.h"
 
-extern bool g_suspend_state;
-#define GET_TAP_KC(dual_role_key) dual_role_key & 0xFF
-uint16_t last_keycode  = KC_NO;
-uint8_t  last_modifier = 0;
-
-typedef struct {
-    bool    is_press_action;
-    uint8_t step;
-} tap;
-
-enum { SINGLE_TAP = 1, SINGLE_HOLD, DOUBLE_TAP, DOUBLE_HOLD, DOUBLE_SINGLE_TAP, MORE_TAPS };
-
-static tap dance_state = {.is_press_action = true, .step = 0};
-
-#define ADD_ACTION_TAP_DANCE(Name) ACTION_TAP_DANCE_FN_ADVANCED(on_##Name, Name##_finished, Name##_reset)
-
-#define DEFINE_TAP_DANCE_SIMPLE(Name, TapCode, HoldCode) DEFINE_TAP_DANCE(Name, TapCode, HoldCode, TapCode, TapCode)
-#define DEFINE_TAP_DANCE(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode)      \
-    void    on_##Name(tap_dance_state_t *state, void *user_data);                          \
-    uint8_t Name##_dance_step(tap_dance_state_t *state);                                   \
-    void    Name##_finished(tap_dance_state_t *state, void *user_data);                    \
-    void    Name##_reset(tap_dance_state_t *state, void *user_data);                       \
-    DEFINE_TAP_DANCE_ON(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode)       \
-    DEFINE_TAP_DANCE_STEP(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode)     \
-    DEFINE_TAP_DANCE_FINISHED(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode) \
-    DEFINE_TAP_DANCE_RESET(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode)
-
-#define DEFINE_TAP_DANCE_ON(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode) \
-    void on_##Name(tap_dance_state_t *state, void *user_data) {                          \
-        if (state->count == 3) {                                                         \
-            tap_code16(TapCode);                                                         \
-            tap_code16(TapCode);                                                         \
-            tap_code16(TapCode);                                                         \
-        }                                                                                \
-        if (state->count > 3) {                                                          \
-            tap_code16(TapCode);                                                         \
-        }                                                                                \
-    }
-
-#define DEFINE_TAP_DANCE_STEP(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode) \
-    uint8_t Name##_dance_step(tap_dance_state_t *state) {                                  \
-        if (state->count == 1) {                                                           \
-            if (state->interrupted || !state->pressed)                                     \
-                return SINGLE_TAP;                                                         \
-            else                                                                           \
-                return SINGLE_HOLD;                                                        \
-        } else if (state->count == 2) {                                                    \
-            if (state->interrupted)                                                        \
-                return DOUBLE_SINGLE_TAP;                                                  \
-            else if (state->pressed)                                                       \
-                return DOUBLE_HOLD;                                                        \
-            else                                                                           \
-                return DOUBLE_TAP;                                                         \
-        }                                                                                  \
-        return MORE_TAPS;                                                                  \
-    }
-
-#define DEFINE_TAP_DANCE_FINISHED(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode) \
-    void Name##_finished(tap_dance_state_t *state, void *user_data) {                          \
-        dance_state.step = Name##_dance_step(state);                                           \
-        switch (dance_state.step) {                                                            \
-            case SINGLE_TAP:                                                                   \
-                register_code16(TapCode);                                                      \
-                break;                                                                         \
-            case SINGLE_HOLD:                                                                  \
-                register_code16(HoldCode);                                                     \
-                break;                                                                         \
-            case DOUBLE_TAP:                                                                   \
-                register_code16(DoubleTapCode);                                                \
-                register_code16(DoubleTapCode);                                                \
-                break;                                                                         \
-            case DOUBLE_SINGLE_TAP:                                                            \
-                tap_code16(DoubleSingleTapCode);                                               \
-                register_code16(DoubleSingleTapCode);                                          \
-                break;                                                                         \
-        }                                                                                      \
-    }
-
-#define DEFINE_TAP_DANCE_RESET(Name, TapCode, HoldCode, DoubleTapCode, DoubleSingleTapCode) \
-    void Name##_reset(tap_dance_state_t *state, void *user_data) {                          \
-        wait_ms(10);                                                                        \
-        switch (dance_state.step) {                                                         \
-            case SINGLE_TAP:                                                                \
-                unregister_code16(TapCode);                                                 \
-                break;                                                                      \
-            case SINGLE_HOLD:                                                               \
-                unregister_code16(HoldCode);                                                \
-                break;                                                                      \
-            case DOUBLE_TAP:                                                                \
-                unregister_code16(DoubleTapCode);                                           \
-                break;                                                                      \
-            case DOUBLE_SINGLE_TAP:                                                         \
-                unregister_code16(DoubleSingleTapCode);                                     \
-                break;                                                                      \
-        }                                                                                   \
-        dance_state.step = 0;                                                               \
-    }
-
-#define ADD_ACTION_TAP_DANCE_CMD(Name) ACTION_TAP_DANCE_FN_ADVANCED(on_##Name, Name##_finished, Name##_reset)
-
-#define DEFINE_TAP_DANCE_CMD(Name, TapCode, HoldCmd, DoubleHoldCmd)                        \
-    void    on_##Name(tap_dance_state_t *state, void *user_data);                          \
-    uint8_t Name##_dance_step(tap_dance_state_t *state);                                   \
-    void    Name##_finished(tap_dance_state_t *state, void *user_data);                    \
-    void    Name##_reset(tap_dance_state_t *state, void *user_data);                       \
-    DEFINE_TAP_DANCE_ON(Name, TapCode, HoldCmd, TapCode, TapCode)                          \
-    DEFINE_TAP_DANCE_STEP(Name, TapCode, HoldCmd, TapCode, TapCode)                        \
-    DEFINE_TAP_DANCE_FINISHED_CMD(Name, TapCode, HoldCmd, DoubleHoldCmd, TapCode, TapCode) \
-    DEFINE_TAP_DANCE_RESET_CMD(Name, TapCode, HoldCmd, DoubleHoldCmd, TapCode, TapCode)
-
-#define DEFINE_TAP_DANCE_FINISHED_CMD(Name, TapCode, HoldCmd, DoubleHoldCmd, DoubleTapCode, DoubleSingleTapCode) \
-    void Name##_finished(tap_dance_state_t *state, void *user_data) {                                            \
-        dance_state.step = Name##_dance_step(state);                                                             \
-        switch (dance_state.step) {                                                                              \
-            case SINGLE_TAP:                                                                                     \
-                register_code16(TapCode);                                                                        \
-                break;                                                                                           \
-            case SINGLE_HOLD:                                                                                    \
-                HoldCmd;                                                                                         \
-                break;                                                                                           \
-            case DOUBLE_HOLD:                                                                                    \
-                DoubleHoldCmd;                                                                                   \
-                break;                                                                                           \
-            case DOUBLE_TAP:                                                                                     \
-                register_code16(DoubleTapCode);                                                                  \
-                register_code16(DoubleTapCode);                                                                  \
-                break;                                                                                           \
-            case DOUBLE_SINGLE_TAP:                                                                              \
-                tap_code16(DoubleSingleTapCode);                                                                 \
-                register_code16(DoubleSingleTapCode);                                                            \
-                break;                                                                                           \
-        }                                                                                                        \
-    }
-
-#define DEFINE_TAP_DANCE_RESET_CMD(Name, TapCode, HoldCode, DoubleHoldCmd, DoubleTapCode, DoubleSingleTapCode) \
-    void Name##_reset(tap_dance_state_t *state, void *user_data) {                                             \
-        wait_ms(10);                                                                                           \
-        switch (dance_state.step) {                                                                            \
-            case SINGLE_TAP:                                                                                   \
-                unregister_code16(TapCode);                                                                    \
-                break;                                                                                         \
-            case SINGLE_HOLD:                                                                                  \
-                break;                                                                                         \
-            case DOUBLE_TAP:                                                                                   \
-                unregister_code16(DoubleTapCode);                                                              \
-                break;                                                                                         \
-            case DOUBLE_HOLD:                                                                                  \
-                break;                                                                                         \
-            case DOUBLE_SINGLE_TAP:                                                                            \
-                unregister_code16(DoubleSingleTapCode);                                                        \
-                break;                                                                                         \
-        }                                                                                                      \
-        dance_state.step = 0;                                                                                  \
-    }
-
-enum tap_dance_codes {
-    DOT_EXLM,
-    EXLM_QUES,
-    COMMA_MINUS,
-    SLASH_UNDS,
-    TAB_WINTAB,
-    LEFT__CTRL_LEFT,
-    RIGHT__CTRL_RIGHT,
-    SL_BKSL,
-    DQUOTE_QUOTE,
-    HASH_AT,
-    DLR_PERC,
-    HEX_NUMPAD_1_A,
-    HEX_NUMPAD_2_B,
-    HEX_NUMPAD_3_C,
-    HEX_NUMPAD_4_D,
-    HEX_NUMPAD_5_E,
-    HEX_NUMPAD_6_F,
-    HEX_NUMPAD_0_X,
-    DEC_DOT_COMMA,
-    CIRC_QUIT_VIM,
-    ESC_FORCE_QUIT_VIM,
-};
+// extern bool g_suspend_state;
+// #define GET_TAP_KC(dual_role_key) dual_role_key & 0xFF
+// uint16_t last_keycode = KC_NO;
+// uint8_t  last_modifier = 0;
 
 DEFINE_TAP_DANCE_SIMPLE(COMMA_MINUS, KC_COMMA, KC_MINS)
 DEFINE_TAP_DANCE_SIMPLE(DOT_EXLM, KC_DOT, KC_EXLM)
@@ -273,22 +100,7 @@ enum custom_keycodes {
     COLEMAK_DH,
     QWERTY,
     GO_ALPHA,
-    THUMB_LEFT_1,
-    THUMB_LEFT_2,
-    // THUMB_LEFT_3,
-    THUMB_RIGHT_3,
-    THUMB_RIGHT_2,
-    THUMB_RIGHT_1,
-    SWAP_THUMBS,
-    SWAP_RTHUMB,
-    SWAP_LTHUMB,
-    SWAP_HANDS,
-    SWAP_MODE,
 };
-
-// The third thumb key is not in use yet
-#define THUMB_LEFT_3 LT(_NAVIGATION, KC_ENT)
-// #define THUMB_RIGHT_3 GO_ALPHA
 
 //==============================================================================
 
@@ -335,195 +147,6 @@ bool handle_layout_switch(uint16_t keycode, keyrecord_t *record) {
 
 //==============================================================================
 
-uint16_t ctrl_press_time = 0;
-
-bool thumb_ctrl_or_gui(keyrecord_t *record) {
-    if (record->event.pressed) {
-        if (IS_LAYER_ON(current_alpha_layer)) {
-            ctrl_press_time = record->event.time;
-            register_code(KC_LCTL);
-        } else if (IS_LAYER_ON(_SPECIAL)) {
-            register_mods(MOD_BIT(KC_LALT) | MOD_BIT(KC_LCTL));
-        } else {
-            register_code(KC_LGUI);
-        }
-    } else if (IS_LAYER_ON(current_alpha_layer)) {
-        unregister_code(KC_LCTL);
-        if ((record->event.time - ctrl_press_time) <= TAPPING_TERM) {
-            // TAP → oneshot shift
-            clear_oneshot_mods();
-            set_oneshot_mods(MOD_BIT(KC_LCTL));
-        }
-    } else {
-        unregister_mods(MOD_BIT(KC_LALT) | MOD_BIT(KC_LCTL) | MOD_BIT(KC_LGUI));
-    }
-    return false;
-}
-
-//==============================================================================
-
-uint16_t alpha_layer_press_time = 0;
-
-bool thumb_change_layer(keyrecord_t *record) {
-    if (record->event.pressed) {
-        alpha_layer_press_time = record->event.time;
-        if (IS_LAYER_ON(_SPECIAL)) {
-            layer_move(_NUMBERS);
-        } else if (IS_LAYER_ON(_NUMBERS)) {
-            // remain in this layer
-        } else {
-            layer_move(_SPECIAL);
-        }
-    } else {
-        if ((record->event.time - alpha_layer_press_time) >= TAPPING_TERM) {
-            // HOLD → return to alpha layer
-            layer_move(current_alpha_layer);
-        }
-    }
-    return false;
-}
-
-//==============================================================================
-
-uint16_t shift_press_time = 0;
-
-bool thumb_shift(keyrecord_t *record) {
-    if (record->event.pressed) {
-        shift_press_time = record->event.time;
-        register_code(KC_LSFT);
-    } else {
-        unregister_code(KC_LSFT);
-        if ((record->event.time - shift_press_time) <= TAPPING_TERM) {
-            // TAP → oneshot shift
-            clear_oneshot_mods();
-            set_oneshot_mods(MOD_BIT(KC_LSFT));
-        }
-    }
-    return false;
-}
-
-//==============================================================================
-
-bool thumb_to_alpha_or_space(keyrecord_t *record) {
-    if (record->event.pressed) {
-        // if (IS_LAYER_ON(current_alpha_layer)) {
-        register_code(KC_SPC);
-        // } else {
-        //     layer_move(current_alpha_layer);
-        // }
-    } else {
-        unregister_code(KC_SPC);
-    }
-    return false;
-}
-
-//==============================================================================
-
-bool thumb_to_alpha(keyrecord_t *record) {
-    if (record->event.pressed) {
-        layer_move(current_alpha_layer);
-    }
-    return false;
-}
-
-//==============================================================================
-
-bool thumb_enter(keyrecord_t *record) {
-    if (record->event.pressed) {
-        register_code(KC_ENT);
-    } else {
-        unregister_code(KC_ENT);
-    }
-    return false;
-}
-
-//==============================================================================
-
-typedef enum { THUMB_L1, THUMB_L2, THUMB_L3, THUMB_R1, THUMB_R2, THUMB_R3, THUMB_POS_COUNT } thumb_pos_t;
-
-thumb_pos_t keycode_to_thumb(uint16_t keycode) {
-    // clang-format off
-    switch (keycode) {
-        case THUMB_LEFT_1:  return THUMB_L1;
-        case THUMB_LEFT_2:  return THUMB_L2;
-        // case THUMB_LEFT_3:  return THUMB_L3;
-        case THUMB_RIGHT_1: return THUMB_R1;
-        case THUMB_RIGHT_2: return THUMB_R2;
-        case THUMB_RIGHT_3: return THUMB_R3;
-        default: return THUMB_POS_COUNT;
-    }
-    // clang-format on
-}
-
-typedef bool (*thumb_behavior_t)(keyrecord_t *);
-
-thumb_behavior_t thumbkey_behaviors[6] = {
-    [THUMB_L1] = thumb_to_alpha_or_space, [THUMB_L2] = thumb_ctrl_or_gui, [THUMB_L3] = thumb_enter, [THUMB_R1] = thumb_change_layer, [THUMB_R2] = thumb_shift, [THUMB_R3] = thumb_to_alpha,
-};
-
-void swap_behaviors(uint8_t a, uint8_t b) {
-    thumb_behavior_t tmp  = thumbkey_behaviors[a];
-    thumbkey_behaviors[a] = thumbkey_behaviors[b];
-    thumbkey_behaviors[b] = tmp;
-}
-
-uint16_t first_selected = THUMB_POS_COUNT;
-bool     swap_active    = false;
-bool     handle_thumb_keys(uint16_t keycode, keyrecord_t *record) {
-    thumb_pos_t phys = keycode_to_thumb(keycode);
-
-    if (phys != THUMB_POS_COUNT) {
-        if (swap_active && record->event.pressed) {
-            if (first_selected == THUMB_POS_COUNT) {
-                first_selected = phys;
-            } else {
-                swap_behaviors(first_selected, phys);
-                swap_active    = false;
-                first_selected = THUMB_POS_COUNT;
-            }
-            return false;
-        }
-
-        thumb_behavior_t behavior = thumbkey_behaviors[phys];
-        if (behavior) {
-            behavior(record);
-            return false;
-        }
-    }
-
-    switch (keycode) {
-        case SWAP_MODE:
-            if (record->event.pressed) {
-                swap_active = true;
-            }
-            break;
-        case SWAP_HANDS:
-            if (record->event.pressed) {
-                swap_behaviors(THUMB_L1, THUMB_R1);
-                swap_behaviors(THUMB_L2, THUMB_R2);
-                swap_behaviors(THUMB_L3, THUMB_R3);
-            }
-            break;
-        case SWAP_THUMBS:
-            if (record->event.pressed) {
-                swap_behaviors(THUMB_L1, THUMB_L2);
-                swap_behaviors(THUMB_R1, THUMB_R2);
-            }
-            break;
-        case SWAP_LTHUMB:
-            if (record->event.pressed) {
-                swap_behaviors(THUMB_L1, THUMB_L2);
-            }
-            break;
-        case SWAP_RTHUMB:
-            if (record->event.pressed) {
-                swap_behaviors(THUMB_R1, THUMB_R2);
-            }
-            break;
-    }
-    return false;
-}
-
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case GRAPHITE:
@@ -532,18 +155,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case QWERTY:
         case GO_ALPHA:
             return handle_layout_switch(keycode, record);
-
-        case THUMB_LEFT_1:
-        case THUMB_LEFT_2:
-        case THUMB_RIGHT_3:
-        case THUMB_RIGHT_2:
-        case THUMB_RIGHT_1:
-        case SWAP_THUMBS:
-        case SWAP_RTHUMB:
-        case SWAP_LTHUMB:
-        case SWAP_HANDS:
-        case SWAP_MODE:
-            return handle_thumb_keys(keycode, record);
         default:
             break;
     }
@@ -637,9 +248,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [_LAYOUT_SELECTION] = LAYOUT(
 // ┌────────────── Left hand ─────────────────┐    ┌─────────────── Right hand ───────────────┐
-    KC_NO, KC_NO, SWAP_LTHUMB,SWAP_RTHUMB, KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 1
-    KC_NO, KC_NO, SWAP_HANDS, SWAP_THUMBS, KC_NO, /**/ KC_NO, GRAPHITE, ISRT,  COLEMAK_DH, QWERTY, // Row 2
-    SWAP_MODE, KC_NO, KC_NO,  KC_NO,       KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
+    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 1
+    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, /**/ KC_NO, GRAPHITE, ISRT,  COLEMAK_DH, QWERTY, // Row 2
+    KC_NO, KC_NO, KC_NO, KC_NO, KC_NO, /**/ KC_NO,  KC_NO,   KC_NO,   KC_NO,    KC_NO,  // Row 3
 // └────────────── Left hand ─────────────────┘    └─────────────── Right hand ───────────────┘
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
     LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), KC_LGUI, OSM(MOD_LSFT), TO(_SPECIAL), GO_ALPHA
