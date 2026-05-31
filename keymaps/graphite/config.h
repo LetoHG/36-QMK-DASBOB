@@ -43,3 +43,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #undef MOUSEKEY_WHEEL_MAX_SPEED
 #define MOUSEKEY_WHEEL_MAX_SPEED 3
+
+// Improve mod-tap behavior for home-row mods
+#define PERMISSIVE_HOLD
+#define IGNORE_MOD_TAP_INTERRUPT
