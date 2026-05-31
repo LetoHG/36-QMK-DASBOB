@@ -166,10 +166,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_GRAPHITE] = LAYOUT(
 // ┌───────────────────────────── Left hand ─────────────────────────────┐    ┌────────────────────────────────── Right hand ─────────────────────────────────────┐
     KC_B, KC_L,               KC_D,              KC_W,              KC_Z, /**/ KC_BSPC, KC_F,              KC_O,              KC_U,               KC_J,            // Row 1
-    MT(MOD_LSFT,KC_N), MT(MOD_LALT,KC_R), MT(MOD_LCTL,KC_T), MT(MOD_LGUI,KC_S), KC_G, /**/ KC_Y, MT(MOD_RGUI,KC_H), MT(MOD_LCTL,KC_A), MT(MOD_RALT,KC_E), MT(MOD_RSFT,KC_I),            // Row 2
+    MT(MOD_LGUI,KC_N), MT(MOD_LALT,KC_R), MT(MOD_LCTL,KC_T), MT(MOD_LSFT,KC_S), KC_G, /**/ KC_Y, MT(MOD_RSFT,KC_H), MT(MOD_LCTL,KC_A), MT(MOD_RALT,KC_E), MT(MOD_RGUI,KC_I),            // Row 2
     KC_Q, KC_X,               KC_M,              KC_C,              KC_V, /**/ KC_K,    KC_P,              TD(COMMA_MINUS),   TD(DOT_EXLM),       TD(SLASH_UNDS),  // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_ISRT] = LAYOUT(
@@ -178,7 +178,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_I, KC_S, MT(MOD_LSFT,KC_R), MT(MOD_LALT,KC_T), MT(MOD_LCTL,KC_G), /**/ MT(MOD_RGUI,KC_P), MT(MOD_LCTL,KC_N), MT(MOD_RALT,KC_E), MT(MOD_RSFT,KC_A), MT(MOD_RGUI,KC_O),    // Row 2
     KC_Q, KC_V, KC_W,              KC_D,              KC_J, /**/ KC_B, KC_H,              TD(SLASH_UNDS),    TD(DOT_EXLM),    KC_X,    // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_COLEMAK_DH] = LAYOUT(
@@ -187,7 +187,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_A, KC_R, MT(MOD_LSFT,KC_S), MT(MOD_LALT,KC_T), MT(MOD_LCTL,KC_G), /**/ MT(MOD_RGUI,KC_M), MT(MOD_LCTL,KC_N), MT(MOD_RALT,KC_E), MT(MOD_RSFT,KC_I), MT(MOD_RGUI,KC_O),           // Row 2
     KC_Z, KC_X, KC_C,              KC_D,              KC_V, /**/ KC_K, KC_H,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_QWERTY] = LAYOUT(
@@ -196,7 +196,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_A, KC_S, MT(MOD_LSFT,KC_D), MT(MOD_LALT,KC_F), MT(MOD_LCTL,KC_G), /**/ MT(MOD_RGUI,KC_H), MT(MOD_LCTL,KC_J), MT(MOD_RALT,KC_K), MT(MOD_RSFT,KC_L),         MT(MOD_RGUI,KC_SCLN),        // Row 2
     KC_Z, KC_X, KC_C,              KC_V,              KC_B, /**/ KC_N, KC_M,              TD(COMMA_MINUS),   TD(DOT_EXLM), TD(SLASH_UNDS), // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_BSPC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_SPECIAL] = LAYOUT(
@@ -205,7 +205,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_TAB,                 TD(SL_BKSL),  KC_LCBR, KC_RCBR, KC_ASTR,           /**/ KC_MINS,       KC_LPRN, KC_RPRN,          KC_SCLN,  KC_ENT,          // Row 2
     TD(HASH_AT),            TD(DLR_PERC), KC_PIPE, KC_TILD, KC_GRV,            /**/ TD(EXLM_QUES), KC_AMPR, TD(DQUOTE_QUOTE), KC_COLN,  TO(_NUMBERS), // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_NUMBERS] = LAYOUT(
@@ -214,7 +214,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_TAB,             KC_LALT,             KC_LSFT,             KC_LCTL,             KC_ASTR,           /**/ KC_MINS,            TD(HEX_NUMPAD_4_D), TD(HEX_NUMPAD_5_E), TD(HEX_NUMPAD_6_F), KC_ENT,        // Row 2
     KC_BRIGHTNESS_DOWN, KC_BRIGHTNESS_UP,    KC_AUDIO_VOL_DOWN,   KC_AUDIO_VOL_UP,     TD(DEC_DOT_COMMA), /**/ TD(HEX_NUMPAD_0_X), TD(HEX_NUMPAD_1_A), TD(HEX_NUMPAD_2_B), TD(HEX_NUMPAD_3_C), TO(_FUNCTION), // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), MOD_LGUI, KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_NAVIGATION] = LAYOUT(
@@ -223,7 +223,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_TAB,     KC_LALT,    KC_LSFT,    KC_LCTL,    LCTL(KC_S), /**/ KC_LEFT, KC_DOWN,    KC_UP,  KC_RIGHT, KC_ENT,    // Row 2
     LCTL(KC_Z), LCTL(KC_X), LCTL(KC_C), LCTL(KC_V), LCTL(KC_Y), /**/ KC_NO,   TO(_MOUSE), KC_NO,  KC_NO,    KC_DELETE, // Row 3
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_FUNCTION] = LAYOUT(
@@ -233,7 +233,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  KC_NO,   KC_NO,   KC_NO,        KC_NO,            /**/ KC_NO, KC_F9, KC_F10, KC_F11, KC_F12, // Row 3
 // └────────────────────── Left hand ────────────────────────┘    └──────────── Right hand ─────────────┘
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_MOUSE] = LAYOUT(
@@ -243,7 +243,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_NO,  MS_BTN3, MS_WHLL, MS_WHLR, KC_NO, /**/ KC_NO,   MS_ACL0, MS_ACL1, MS_ACL2, KC_NO, // Row 3
 // └────────────── Left hand ────────────────┘    └─────────────── Right hand ───────────────┘
     // THUMB_LEFT_3, THUMB_LEFT_1, THUMB_LEFT_2, /**/ THUMB_RIGHT_2, THUMB_RIGHT_1, THUMB_RIGHT_3  // Thumbs
-    LT(_NAVIGATION, KC_ENT), LT(_NUMBERS, KC_SPC), OSM(MOD_LSFT), KC_BSPC, KC_SPC, KC_ENT
+    LT(_NAVIGATION, KC_ENT), LT(_SPECIAL, KC_SPC), OSM(MOD_LSFT), KC_ESC, LT(_NUMBERS, KC_SPC), KC_ENT
   ),
 
   [_LAYOUT_SELECTION] = LAYOUT(
